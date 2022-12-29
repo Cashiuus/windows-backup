@@ -1,0 +1,16 @@
+### Generated Files
+*.pyc
+*.bak
+.idea
+
+### OS Generated Files
+Desktop.ini
+Thumbs.db
+
+
+### Environments
+.venv
+venv/*
+
+### Project
+settings.py
