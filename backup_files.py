@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
 # Created:      01-July-2014          -           Revised Date:    29-Dec-2022
-# File:         backup-files.py
+# File:         backup_files.py
 # Depends:      colorama
 # Compat:       3.7+
 # Author:       Cashiuus - Cashiuus{at}gmail
