@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # =============================================================================
-# Created:      01-July-2014          -           Revised Date:    29-Dec-2022
+# Created:      01-July-2014          -           Revised Date:    24-Jul-2023
 # File:         backup_files.py
 # Depends:      colorama
 # Compat:       3.7+
@@ -39,13 +39,14 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # =============================================================================
-__version__ = 2.2
+__version__ = 2.3
 __author__ = 'Cashiuus'
 ## =======[ IMPORT & CONSTANTS ]========= ##
+import argparse
 import errno
 import fnmatch
+import logging
 import os
-import pip
 import re
 import shutil
 import sys
@@ -54,26 +55,27 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 
-
+# log = logging.getLogger(__name__)
 VERBOSE = 1
 DEBUG = 1
 # ========================[ CORE UTILITY FUNCTIONS ]======================== #
+
 def install_pkg(package):
-    pip.main(['install', package])
+    try:
+        import pip
+        pip.main(['install', package])
+    except ImportError:
+        print("[-] Unable to use pip to install package")
+        sys.exit(1)
 
 
-### Imports with exception handling
+# Imports with exception handling
 try: from colorama import init, Fore
 except ImportError: install_pkg('colorama')
 try: from colorama import init, Fore
 except ImportError:
     print("[ERROR] Unable to locate or install pip package 'colorama'")
     sys.exit(1)
-
-
-#def check_ccleaner():
-#    # If the .ini file does not exist, run the command to create them
-#    os.system('CCleaner.exe /EXPORT')
 
 
 def create_file(path):
@@ -181,10 +183,6 @@ class ProgressBar(object):
         self.update(progress)
 
 
-def count_files(files):
-    return len(files)
-
-
 def create_input_list(input_list):
     """
     Receive an input list and clean up files and directories to build a clean list of files w/o any directory entries.
@@ -237,7 +235,12 @@ def backup_to_zip(files, dest):
             print(Fore.RED + "[WARN]" + Fore.RESET + " USB Drive is not currently connected. Files will be skipped...")
 
     # Build the archive's resulting file name for the backup
-    zip_name = BACKUP_PATH + os.sep + BACKUP_FILENAME_PREFIX + time.strftime('%Y%m%d') + '.zip'
+    if dest and os.path.isdir(dest):
+        zip_name = dest + os.sep + BACKUP_FILENAME_PREFIX + time.strftime('%Y%m%d') + '.zip'
+    else:
+        zip_name = BACKUP_PATH + os.sep + BACKUP_FILENAME_PREFIX + time.strftime('%Y%m%d') + '.zip'
+
+    # Open the file as an object for saving to
     z = zipfile.ZipFile(zip_name, 'w')
 
     for file in files:
@@ -258,7 +261,7 @@ def backup_to_zip(files, dest):
                 print(Fore.YELLOW + " [DEBUG : backup_to_zip]" + Fore.RESET + " Copied: {}".format(str(file)))
         except Exception as e:
             if VERBOSE or DEBUG:
-                print(Fore.RED + "[ERROR]" + Fore.RESET + " Error copying file: ", e)
+                print(Fore.RED + "[ERROR]" + Fore.RESET + " Failed copying file: ", e)
             pass
     # Close the zip file when done
     z.close()
@@ -272,7 +275,7 @@ def copy_files_with_progress(files, dst):
 
     Usage: copy_files_with_progress(<list of files>, <backup destination path>)
     """
-    numfiles = count_files(files)
+    numfiles = len(files)
     numcopied = 0
     copy_error = []
     print("[DEBUG] Number of files slated for direct copy: {}".format(str(numfiles)))
@@ -350,23 +353,20 @@ def prune_old_backups(search_path, search_pattern, keep_last=10, do_delete=False
     return files_to_remove
 
 
-if __name__ == '__main__':
-    # See if we are running this with python.exe or pythonw.exe
-    check_python_binary()
-    print(banner())
+def main():
+    parser = argparse.ArgumentParser(description="Windows custom file backup utility")
+    parser.add_argument("--enable-pruning",
+                        action="store_true",
+                        dest="enable_pruning",
+                        help="Enable cleanup of old backup archives in the defined output directory (pruning)")
+    parser.add_argument("-o", "--output-dir", dest='output_dir',
+                        help="Specify output file name")
+    # parser.add_argument("-d", "--debug", action="store_true",
+    #                     help="Display error information")
 
-    # Import settings.py that we don't want stored in version control
-    try:
-        from settings import *
-    except ImportError:
-        # First time running script or for some reason settings.py doesn't exist
-        # Create a fresh settings file with some defaults
-        create_file('settings.py')
-        print("\n [FIRST-RUN] A default 'settings.py' file has been created for you.")
-        print(" [FIRST-RUN] Please update this file with a list of files and backup output path.")
-        print(" [FIRST-RUN] Once 'settings.py' has been updated, run this script once more. "
-              "Exiting...\n\n")
-        sys.exit(1)
+    args = parser.parse_args()
+
+    # check_python_binary()
 
     if DO_PRUNING:
         if DEBUG:
@@ -390,3 +390,26 @@ if __name__ == '__main__':
     except Exception as e:
         print("[ERR] Failed to backup files into zip: {}".format(e))
         sys.exit(1)
+
+    return
+
+
+if __name__ == '__main__':
+    # See if we are running this with python.exe or pythonw.exe
+    check_python_binary()
+    print(banner())
+
+    # Import settings.py that we don't want stored in version control
+    try:
+        from settings import *
+    except ImportError:
+        # First time running script or for some reason settings.py doesn't exist
+        # Create a fresh settings file with some defaults
+        create_file('settings.py')
+        print("\n [FIRST-RUN] A default 'settings.py' file has been created for you.")
+        print(" [FIRST-RUN] Please update this file with a list of files and backup output path.")
+        print(" [FIRST-RUN] Once 'settings.py' has been updated, run this script once more. "
+              "Exiting...\n\n")
+        sys.exit(1)
+
+    main()
